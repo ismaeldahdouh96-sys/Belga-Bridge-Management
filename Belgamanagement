@@ -1,0 +1,1100 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Belga Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#059669', // Emerald 600
+                        'secondary': '#8b5cf6', // Violet 500
+                    },
+                    borderRadius: {
+                        '3xl': '1.5rem',
+                        '2xl': '1rem',
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- CRITICAL iOS-ish PWA/Mobile Meta Tags to force app-like appearance -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Belga Management">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Font for better readability -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* Fixes the "bouncing" issue common on mobile web apps */
+            overflow: hidden; 
+        }
+
+        /* Ensure main content handles scrolling and sizing correctly */
+        .app-container {
+            height: 100vh;
+            max-height: 100vh;
+            /* Prevents horizontal scrolling artifacts */
+            overflow-x: hidden; 
+        }
+
+        /* Style for the custom range input */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: #d1d5db; /* gray-300 */
+            height: 4px;
+            border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -6px;
+            background-color: #059669; /* primary */
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            border: 2px solid #ffffff; /* white border */
+            box-shadow: 0 0 0 4px #9ca3af40; /* gray shadow */
+        }
+        /* Styling for AI output markdown */
+        .ai-result-markdown pre {
+            background-color: #f3f4f6; /* gray-100 */
+            color: #1f2937; /* gray-800 */
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            border: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .ai-result-markdown strong {
+            color: #d97706; /* amber-600 */
+        }
+        .ai-result-markdown h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #059669; /* primary */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <!-- App frame -->
+    <div class="min-h-screen max-w-md mx-auto flex flex-col border-x border-gray-200 shadow-xl app-container">
+
+        <!-- Top bar -->
+        <header class="px-4 pt-6 pb-3 flex items-center justify-between border-b border-gray-200 bg-white/90 backdrop-blur sticky top-0 z-20 shadow-sm">
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">Belga Management</h1>
+                <p class="text-xs text-gray-500" id="topSubtitle">Loading app data...</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="quickCheckInBtn" class="text-[11px] px-3 py-1.5 rounded-full bg-secondary text-white font-bold shadow-md shadow-secondary/20 transition-all duration-150 hover:bg-violet-600">
+                    Check-in
+                </button>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="flex-1 overflow-y-auto pb-20">
+            <!-- TODAY SCREEN -->
+            <section id="screen-today" class="p-4 space-y-4">
+                <!-- Daily focus card -->
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.16em] text-gray-500 mb-1">Daily Command Center</p>
+                            <p class="text-sm font-medium text-gray-800" id="todayDateLabel"></p>
+                        </div>
+                        <span id="dailyFocusStatus" class="text-[10px] px-2.5 py-1 rounded-full border border-primary/40 text-primary bg-primary/10 font-medium">
+                            Awaiting Focus
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-600 mb-4 font-semibold" id="todayFocusText">
+                        Let’s define your #1 move for Belga Bridge today.
+                    </p>
+                    <button id="suggestFocusBtn"
+                        class="w-full text-sm px-3 py-2.5 rounded-xl bg-primary text-white font-bold shadow-md shadow-primary/30 hover:bg-emerald-600 transition-all duration-150 flex items-center justify-center disabled:opacity-50"
+                        disabled>
+                        <span id="suggestFocusText">AI Suggest Today’s Core Focus</span>
+                    </button>
+                </div>
+
+                <!-- Quick stats -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm">
+                        <p class="text-[10px] text-gray-500 mb-1">Tasks done</p>
+                        <p class="text-2xl font-bold text-primary" id="statTasksDone">0</p>
+                        <p class="text-[10px] text-gray-600">today</p>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm">
+                        <p class="text-[10px] text-gray-500 mb-1">Deep work est.</p>
+                        <p class="text-2xl font-bold text-secondary" id="statDeepMinutes">0</p>
+                        <p class="text-[10px] text-gray-600">min</p>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm">
+                        <p class="text-[10px] text-gray-500 mb-1">Focus score</p>
+                        <p class="text-2xl font-bold text-yellow-600" id="statFocusScore">–</p>
+                        <p class="text-[10px] text-gray-600">/10</p>
+                    </div>
+                </div>
+
+                <!-- Suggestions / empty-time helper -->
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs font-semibold text-gray-800">AI Idle-Time Suggestions</p>
+                        <button id="refreshSuggestionsBtn" class="text-[11px] text-gray-500 underline hover:text-primary transition-colors duration-150">
+                            Refresh
+                        </button>
+                    </div>
+                    <ul class="space-y-2 text-xs text-gray-700" id="suggestionsList">
+                        <li class="text-gray-500">Loading proactive ideas...</li>
+                    </ul>
+                </div>
+
+                <!-- Daily check-in preview -->
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 flex items-center justify-between shadow-sm">
+                    <div>
+                        <p class="text-xs font-semibold mb-1 text-gray-800">Daily Mindset Log</p>
+                        <p class="text-[11px] text-gray-500" id="lastCheckInText">No log data available.</p>
+                    </div>
+                    <button id="openCheckInBtn" class="text-xs px-3 py-1.5 rounded-xl bg-secondary text-white font-bold hover:bg-violet-600 transition-colors duration-150 shadow-md shadow-secondary/20">
+                        Log now
+                    </button>
+                </div>
+            </section>
+
+            <!-- TASKS SCREEN -->
+            <section id="screen-tasks" class="hidden p-4 space-y-4">
+                <!-- Filters + add -->
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex gap-2 text-[11px]">
+                        <button class="task-filter px-3 py-1.5 rounded-full border border-primary text-primary bg-primary/10 font-bold transition-colors duration-150" data-filter="today">Today</button>
+                        <button class="task-filter px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition-colors duration-150" data-filter="backlog">Backlog</button>
+                        <button class="task-filter px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition-colors duration-150" data-filter="all">All</button>
+                    </div>
+                    <button id="addTaskBtn" class="text-xs px-3 py-1.5 rounded-xl bg-primary text-white font-bold hover:bg-emerald-600 transition-colors duration-150 shadow-md shadow-primary/20">
+                        + Add task
+                    </button>
+                </div>
+
+                <!-- Task list -->
+                <div id="tasksList" class="space-y-3 text-xs">
+                    <p class="text-[11px] text-gray-500 text-center py-8" id="emptyTaskList">
+                        Add tasks to start tracking your Belga Management execution.
+                    </p>
+                </div>
+
+                <!-- Hint about bottlenecks -->
+                <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-4 text-[11px] text-gray-600 shadow-sm" id="bottleneckHint">
+                    AI will highlight flow disruptions here once you have some pending tasks.
+                </div>
+            </section>
+
+            <!-- COACHING SCREEN -->
+            <section id="screen-coaching" class="hidden p-4 space-y-4">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-lg">
+                    <p class="text-xs font-semibold uppercase text-gray-500 mb-1">AI Coaching Session</p>
+                    <p class="text-[11px] text-gray-600 mb-3">
+                        Get personalized strategic advice, bottleneck solutions, and improvements.
+                    </p>
+
+                    <textarea id="coachingInput"
+                        class="w-full text-sm rounded-xl bg-gray-50 border border-gray-300 px-4 py-3 mb-3 outline-none focus:border-primary text-gray-900 placeholder:text-gray-500"
+                        rows="3"
+                        placeholder="What do you want help with today? (ex: 'I’m avoiding prospection', 'I feel stuck growing Belga Bridge')"></textarea>
+
+                    <button id="generateCoachingBtn"
+                        class="w-full text-sm px-3 py-2.5 rounded-xl bg-yellow-500 text-gray-900 font-bold shadow-md shadow-yellow-500/40 hover:bg-yellow-600 transition-all duration-150 flex items-center justify-center disabled:opacity-50"
+                        disabled>
+                        <span id="generateCoachingText">Start Personalized AI Coaching</span>
+                    </button>
+
+                    <div id="coachingOutput"
+                        class="text-xs text-gray-800 border border-gray-200 rounded-2xl bg-gray-50/80 px-4 py-4 mt-4 min-h-[80px] whitespace-pre-line ai-result-markdown">
+                        Your AI coach will generate a detailed strategy based on your performance data here.
+                    </div>
+                </div>
+
+                <!-- AI Sources placeholder -->
+                <div id="aiSources" class="hidden rounded-2xl border border-gray-200 bg-white p-4 text-[11px] text-gray-600 space-y-1 shadow-sm">
+                    <p class="font-medium text-gray-800 mb-1">Sources Referenced</p>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Bottom tab bar -->
+        <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md border-t border-gray-200 bg-white/95 backdrop-blur z-20 shadow-lg">
+            <div class="grid grid-cols-3 text-[11px] text-gray-500">
+                <button class="tab-btn py-3 flex flex-col items-center gap-0.5 text-primary text-gray-900" data-target="today">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m0 0l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    <span class="font-semibold">Today</span>
+                </button>
+                <button class="tab-btn py-3 flex flex-col items-center gap-0.5 hover:text-gray-900 transition-colors duration-150" data-target="tasks">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    <span class="font-semibold">Tasks</span>
+                </button>
+                <button class="tab-btn py-3 flex flex-col items-center gap-0.5 hover:text-gray-900 transition-colors duration-150" data-target="coaching">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.864 23.864 0 0112 15c-3.18 0-6.236-.613-9-1.745M12 12V3m0 0l3 3m-3-3l-3 3"></path></svg>
+                    <span class="font-semibold">AI Coach</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- ADD TASK MODAL -->
+        <div id="taskModal" class="fixed inset-0 bg-black/30 backdrop-blur-sm hidden items-end justify-center z-30 transition-opacity duration-300">
+            <div class="w-full max-w-md rounded-t-3xl bg-white border-t border-gray-200 p-6 space-y-4 shadow-3xl transform translate-y-0">
+                <div class="flex justify-between items-center">
+                    <p class="text-lg font-semibold text-primary">New Task</p>
+                    <button id="closeTaskModal" class="text-sm text-gray-500 hover:text-gray-900 transition-colors duration-150">Cancel</button>
+                </div>
+
+                <form id="taskForm" class="space-y-4 text-sm">
+                    <div>
+                        <label class="block text-[11px] text-gray-600 mb-1">Title</label>
+                        <input id="taskTitleInput" type="text"
+                            class="w-full rounded-xl bg-gray-50 border border-gray-300 px-4 py-2.5 outline-none focus:border-primary transition-colors duration-150 text-gray-900"
+                            placeholder="Ex: Call 3 potential shippers / brokers" required>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-600 mb-1">When</label>
+                            <select id="taskWhenInput"
+                                class="w-full rounded-xl bg-gray-50 border border-gray-300 px-4 py-2.5 outline-none focus:border-primary appearance-none text-gray-900">
+                                <option value="today">Today</option>
+                                <option value="backlog">Backlog</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-600 mb-1">Priority</label>
+                            <select id="taskPriorityInput"
+                                class="w-full rounded-xl bg-gray-50 border border-gray-300 px-4 py-2.5 outline-none focus:border-primary appearance-none text-gray-900">
+                                <option value="high">High (Mover)</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-600 mb-1">Status</label>
+                            <select id="taskStatusInput"
+                                class="w-full rounded-xl bg-gray-50 border border-gray-300 px-4 py-2.5 outline-none focus:border-primary appearance-none text-gray-900">
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-[11px] text-gray-600 mb-1">
+                            Attachment link (optional)
+                        </label>
+                        <input id="taskAttachmentInput" type="url"
+                            class="w-full rounded-xl bg-gray-50 border border-gray-300 px-4 py-2.5 outline-none focus:border-primary transition-colors duration-150 text-gray-900"
+                            placeholder="Ex: Google Drive link, contract PDF URL">
+                        <p class="text-[10px] text-gray-500 mt-1">
+                            Note: This stores a link, not the file itself.
+                        </p>
+                    </div>
+
+                    <button type="submit" id="saveTaskBtn"
+                        class="w-full text-sm px-4 py-3 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/30 hover:bg-emerald-600 transition-all duration-150 disabled:opacity-50">
+                        Add New Task
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- CHECK-IN MODAL -->
+        <div id="checkInModal" class="fixed inset-0 bg-black/30 backdrop-blur-sm hidden items-end justify-center z-30 transition-opacity duration-300">
+            <div class="w-full max-w-md rounded-t-3xl bg-white border-t border-gray-200 p-6 space-y-4 shadow-3xl transform translate-y-0">
+                <div class="flex justify-between items-center">
+                    <p class="text-lg font-semibold text-secondary">Daily Mindset Log</p>
+                    <button id="closeCheckInModal" class="text-sm text-gray-500 hover:text-gray-900 transition-colors duration-150">Cancel</button>
+                </div>
+
+                <form id="checkInForm" class="space-y-4 text-sm">
+                    <div id="checkInMessage" class="hidden text-sm p-3 rounded-xl bg-green-100 text-green-700 border border-green-300"></div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Energy (1–10): <span id="checkInEnergyValue" class="text-secondary font-bold">7</span></label>
+                        <input id="checkInEnergy" type="range" min="1" max="10" value="7" class="w-full">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Focus (1–10): <span id="checkInFocusValue" class="text-secondary font-bold">7</span></label>
+                        <input id="checkInFocus" type="range" min="1" max="10" value="7" class="w-full">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] text-gray-600 mb-1">Comment (Challenges / Wins)</label>
+                        <textarea id="checkInNote"
+                            class="w-full rounded-xl bg-gray-50 border border-gray-300 px-4 py-2.5 outline-none focus:border-secondary text-gray-900 placeholder:text-gray-500"
+                            rows="2"
+                            placeholder="Ex: Good sleep, closed first contract with client X."></textarea>
+                    </div>
+                
+                    <button type="submit" id="saveCheckInBtn"
+                        class="w-full text-sm px-4 py-3 rounded-xl bg-secondary text-white font-bold shadow-lg shadow-secondary/30 hover:bg-violet-600 transition-all duration-150 disabled:opacity-50">
+                        Save Check-in
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, serverTimestamp, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES (Provided by Canvas) ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-belga-app';
+        
+        let db, auth, userId = null;
+        let isAuthReady = false;
+        let tasks = [];
+        let checkIns = [];
+        let currentFilter = "today";
+        let isAiProcessing = false;
+        
+        // Map for task status cycling
+        const TASK_STATUS_CYCLE = ['pending', 'in_progress', 'blocked'];
+        const STATUS_DETAILS = {
+            'pending': { text: 'PENDING', class: 'text-gray-600 bg-gray-200 border-gray-400', next: 'in_progress' },
+            'in_progress': { text: 'IN PROGRESS', class: 'text-blue-700 bg-blue-200 border-blue-500', next: 'blocked' },
+            'blocked': { text: 'BLOCKED', class: 'text-yellow-700 bg-yellow-200 border-yellow-500', next: 'pending' },
+            'done': { text: 'DONE', class: 'text-primary bg-green-200 border-primary', next: 'pending' } // Done handled separately
+        };
+
+        // --- Firebase Initialization and Auth ---
+        if (firebaseConfig) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            const authenticate = async () => {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (e) {
+                    console.error("Firebase Auth Error:", e);
+                }
+            };
+            
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById("topSubtitle").textContent = `Authenticated. User ID: ${userId.substring(0, 8)}...`;
+                } else {
+                    userId = null;
+                    document.getElementById("topSubtitle").textContent = "Signed out.";
+                }
+                isAuthReady = true;
+                initListeners();
+            });
+
+            authenticate();
+        } else {
+            console.error("Firebase config not available. App will not function.");
+            document.getElementById("topSubtitle").textContent = "ERROR: Firebase not initialized.";
+            isAuthReady = true;
+        }
+
+        // --- UTILITIES ---
+        const API_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=`;
+
+        function todayKey() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function getTaskCollectionRef() {
+            return collection(db, `artifacts/${appId}/users/${userId}/tasks`);
+        }
+
+        function getCheckinCollectionRef() {
+            return collection(db, `artifacts/${appId}/users/${userId}/checkins`);
+        }
+
+        const withExponentialBackoff = async (fn, retries = 5, delay = 1000) => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    return await fn();
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    const jitter = Math.random() * 500;
+                    const sleepTime = delay * Math.pow(2, i) + jitter;
+                    await new Promise(resolve => setTimeout(resolve, sleepTime));
+                }
+            }
+        };
+
+        const getAiResponse = async (userQuery, mode) => {
+            // Check if AI is initialized and enabled
+             if (!isAuthReady || !db || !userId) {
+                console.error("AI call blocked: App is not ready or user is not authenticated.");
+                throw new Error("Application initialization pending. Please wait.");
+            }
+
+            const tasksForAI = tasks.map(t => ({
+                id: t.id,
+                title: t.title,
+                status: t.status,
+                priority: t.priority,
+                when: t.when,
+                age_days: Math.floor((t.createdAt?.toDate() ? Date.now() - t.createdAt.toDate().getTime() : 0) / (1000 * 60 * 60 * 24))
+            }));
+            const checkinSummary = checkIns.map(c => ({
+                date: c.date,
+                focus: c.focus,
+                energy: c.energy,
+                note: c.note.substring(0, 50) + '...'
+            }));
+
+            const dataContext = `
+                --- Business Performance Data ---
+                - Total Tasks Logged: ${tasks.length}
+                - Completed Tasks: ${tasks.filter(t => t.status === 'done').length}
+                - Pending Today: ${tasks.filter(t => t.when === 'today' && t.status === 'pending').length}
+                - In Progress: ${tasks.filter(t => t.status === 'in_progress').length}
+                - Blocked: ${tasks.filter(t => t.status === 'blocked').length}
+                
+                --- Recent Check-ins (Last 7 Days) ---
+                ${JSON.stringify(checkinSummary)}
+
+                --- All Non-Done Tasks (Title, Status, Priority, Age) ---
+                ${JSON.stringify(tasksForAI.filter(t => t.status !== 'done'))}
+            `;
+
+            let systemPrompt;
+            if (mode === 'SUGGEST_TASK') {
+                systemPrompt = `You are "Belga AI Task Prioritizer." Analyze the user's data. If they have open HIGH-priority tasks for today, recommend one of those. If today's list is clear, pull the most impactful task from the backlog or suggest a strategic HIGH-VALUE task to avoid idle time (e.g., 'Draft client onboarding checklist' or 'Research 3 new routes'). Output ONLY the task title and the suggested priority (high, medium, or low), separated by a new line. Do NOT use markdown or any other text.`;
+            } else { // 'COACHING'
+                systemPrompt = `You are "Belga AI Coach," an expert business management consultant for a logistics/brokerage firm (Belga Bridge). Provide a concise, action-oriented coaching session based on the user's query and their performance data (tasks, energy, focus, and ${tasks.filter(t => t.status === 'blocked').length} blocked tasks). Identify one core bottleneck and provide 3 concrete, actionable steps to solve it or advance their strategy. Format your output using strong markdown headers/bolding.`;
+            }
+
+            const payload = {
+                contents: [{ parts: [{ text: `User Query: "${userQuery}"\n${dataContext}` }] }],
+                tools: mode === 'COACHING' ? [{ "google_search": {} }] : [],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                config: { temperature: mode === 'SUGGEST_TASK' ? 0.2 : 0.7 }
+            };
+
+            const response = await withExponentialBackoff(() => fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }));
+            
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                const text = candidate.content.parts[0].text;
+                let sources = [];
+                const groundingMetadata = candidate.groundingMetadata;
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                    sources = groundingMetadata.groundingAttributions
+                        .map(attribution => ({ uri: attribution.web?.uri, title: attribution.web?.title }))
+                        .filter(source => source.uri && source.title);
+                }
+                return { text, sources };
+            }
+            throw new Error(result.error?.message || "AI failed to generate a response (no candidate found).");
+        };
+
+
+        // --- FIREBASE LISTENERS (Tasks and Check-ins) ---
+        function initListeners() {
+            if (!db || !userId) return;
+
+            // 1. Task Listener
+            const qTasks = query(getTaskCollectionRef(), orderBy('createdAt', 'desc'));
+
+            onSnapshot(qTasks, (snapshot) => {
+                let tasksData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Client-side sort: Done last, then Blocked/Pending/In_Progress by Priority (High > Medium > Low)
+                tasksData.sort((a, b) => {
+                    if (a.status === 'done' && b.status !== 'done') return 1;
+                    if (a.status !== 'done' && b.status === 'done') return -1;
+                    
+                    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+                    return priorityOrder[b.priority] - priorityOrder[a.priority];
+                });
+
+                tasks = tasksData;
+                renderTasks();
+                refreshStatsAndAnalytics();
+                generateSuggestions();
+            }, (error) => {
+                console.error("Task Listener Error:", error);
+            });
+
+            // 2. Check-in Listener (Last 7 days)
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            const qCheckins = query(getCheckinCollectionRef(), orderBy('createdAt', 'desc'), where('createdAt', '>', sevenDaysAgo));
+
+            onSnapshot(qCheckins, (snapshot) => {
+                checkIns = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    date: doc.data().createdAt.toDate().toISOString().substring(0, 10),
+                    focus: doc.data().focus,
+                    energy: doc.data().energy,
+                    note: doc.data().note
+                }));
+                updateLastCheckIn();
+                refreshStatsAndAnalytics();
+            }, (error) => {
+                console.error("Check-in Listener Error:", error);
+            });
+        }
+
+
+        // --- TASK RENDER ---
+        const tasksListEl = document.getElementById("tasksList");
+        const emptyTaskListEl = document.getElementById("emptyTaskList");
+
+        function renderTasks() {
+            let filtered;
+            if (currentFilter === "today") {
+                filtered = tasks.filter(t => t.when === "today");
+            } else if (currentFilter === "backlog") {
+                filtered = tasks.filter(t => t.when === "backlog");
+            } else {
+                filtered = [...tasks];
+            }
+
+            tasksListEl.innerHTML = "";
+            emptyTaskListEl.classList.toggle("hidden", filtered.length > 0);
+
+            filtered.forEach((t) => {
+                const container = document.createElement("div");
+                const isDone = t.status === "done";
+                const isHigh = t.priority === "high";
+
+                // Check for old pending task (bottleneck hint)
+                const createdAtTime = t.createdAt?.toDate()?.getTime() || Date.now();
+                const ageDays = Math.floor((Date.now() - createdAtTime) / (1000 * 60 * 60 * 24));
+                const isAged = !isDone && ageDays > 14; 
+
+                // Determine base background/border based on status
+                let containerClass = `rounded-xl border border-gray-200 px-3 py-3 flex items-start gap-3 shadow-md transition-all duration-300`;
+                if (isDone) {
+                    containerClass += ' bg-gray-100';
+                } else if (t.status === 'in_progress') {
+                    containerClass += ' bg-blue-50 border-blue-400';
+                } else if (t.status === 'blocked') {
+                    containerClass += ' bg-yellow-50 border-yellow-400';
+                } else { // pending
+                    containerClass += ' bg-white';
+                }
+                
+                if (isAged && !isDone) {
+                    containerClass += ' ring-1 ring-red-500 shadow-red-200';
+                }
+                container.className = containerClass;
+
+
+                const checkbox = document.createElement("button");
+                checkbox.className = `w-5 h-5 mt-0.5 rounded-full border-2 flex-shrink-0 transition-all duration-300 flex items-center justify-center ${
+                    isDone ? 'bg-primary border-primary' : 'bg-white border-gray-400 hover:bg-gray-100'
+                }`;
+                checkbox.innerHTML = isDone ? `<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>` : '';
+                
+                // Toggle between 'done' and the previous active status
+                checkbox.addEventListener("click", async () => {
+                    const newStatus = isDone ? 'pending' : 'done';
+                    try {
+                        await updateDoc(doc(getTaskCollectionRef(), t.id), {
+                            status: newStatus,
+                            completedAt: isDone ? null : todayKey()
+                        });
+                    } catch (e) {
+                        console.error("Error updating task status:", e);
+                    }
+                });
+
+                const body = document.createElement("div");
+                body.className = "flex-1 min-w-0";
+
+                const title = document.createElement("p");
+                title.className = "text-sm font-medium break-words";
+                if (isDone) title.classList.add("line-through", "text-gray-500");
+                title.textContent = t.title;
+
+                const meta = document.createElement("p");
+                meta.className = "text-[10px] text-gray-500 mt-1 flex items-center gap-3";
+                
+                const priorityText = document.createElement('span');
+                priorityText.textContent = t.priority.toUpperCase();
+                priorityText.className = `font-bold ${isHigh ? 'text-orange-600' : 'text-gray-600'}`;
+                meta.appendChild(priorityText);
+
+                // Status Badge Dropdown/Clickable (New)
+                if (!isDone) {
+                    const statusButton = document.createElement('button');
+                    
+                    const currentStatusDetail = STATUS_DETAILS[t.status] || STATUS_DETAILS.pending;
+                    const currentIndex = TASK_STATUS_CYCLE.indexOf(t.status);
+                    const nextStatus = TASK_STATUS_CYCLE[(currentIndex + 1) % TASK_STATUS_CYCLE.length];
+
+
+                    statusButton.className = `rounded-full text-[10px] px-2 py-0.5 border font-semibold appearance-none cursor-pointer transition-colors duration-150 ${currentStatusDetail.class}`;
+                    statusButton.textContent = currentStatusDetail.text;
+                    
+                    // Cycle status on click
+                    statusButton.addEventListener('click', async (e) => {
+                        e.stopPropagation(); 
+                        try {
+                            await updateDoc(doc(getTaskCollectionRef(), t.id), {
+                                status: nextStatus 
+                            });
+                        } catch (e) {
+                            console.error("Error updating task workflow status:", e);
+                        }
+                    });
+
+                    meta.appendChild(statusButton);
+                }
+
+
+                if (t.attachmentLink) {
+                    const attach = document.createElement("a");
+                    attach.href = t.attachmentLink.startsWith('http') ? t.attachmentLink : `https://${t.attachmentLink}`;
+                    attach.target = "_blank";
+                    attach.rel = "noopener noreferrer";
+                    attach.className = "inline-flex items-center gap-1 text-[10px] text-secondary hover:underline transition-colors duration-150";
+                    attach.innerHTML = `
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13.75"></path></svg>
+                        Link
+                    `;
+                    meta.appendChild(attach);
+                }
+
+                if (!isDone) {
+                     const age = document.createElement('span');
+                     age.textContent = `Age: ${ageDays} days`;
+                     age.className = isAged ? 'text-red-500 font-bold' : 'text-gray-500';
+                     meta.appendChild(age);
+                }
+
+                body.appendChild(title);
+                body.appendChild(meta);
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "text-gray-400 hover:text-red-600 transition-colors duration-150 p-1 flex-shrink-0";
+                deleteBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.87c-.012.302-.27.53-.574.53H6.442c-.304 0-.562-.228-.574-.53L5 7m5 4v6m4-6v6m1-12h-8m8 0a2 2 0 012 2v2M7 5v2m-2 0h14"></path></svg>`;
+                deleteBtn.addEventListener("click", async () => {
+                    try {
+                        await deleteDoc(doc(getTaskCollectionRef(), t.id));
+                    } catch (e) {
+                        console.error("Error deleting task:", e);
+                    }
+                });
+
+                container.appendChild(checkbox);
+                container.appendChild(body);
+                container.appendChild(deleteBtn);
+
+                tasksListEl.appendChild(container);
+            });
+        }
+
+        // Filter buttons
+        document.querySelectorAll(".task-filter").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".task-filter").forEach(b => {
+                    b.classList.remove("border-primary", "text-primary", "bg-primary/10", "font-bold");
+                    b.classList.add("border-gray-300", "text-gray-600", "bg-white");
+                });
+                btn.classList.add("border-primary", "text-primary", "bg-primary/10", "font-bold");
+                btn.classList.remove("border-gray-300", "text-gray-600", "bg-white");
+                currentFilter = btn.dataset.filter;
+                renderTasks();
+            });
+        });
+
+        // --- MODAL HANDLERS ---
+        const taskModal = document.getElementById("taskModal");
+        const checkInModal = document.getElementById("checkInModal");
+
+        document.getElementById("addTaskBtn").addEventListener("click", () => { taskModal.classList.remove("hidden"); taskModal.classList.add("flex"); });
+        document.getElementById("closeTaskModal").addEventListener("click", () => { taskModal.classList.add("hidden"); });
+        document.getElementById("quickCheckInBtn").addEventListener("click", () => { checkInModal.classList.remove("hidden"); checkInModal.classList.add("flex"); });
+        document.getElementById("openCheckInBtn").addEventListener("click", () => { checkInModal.classList.remove("hidden"); checkInModal.classList.add("flex"); });
+        document.getElementById("closeCheckInModal").addEventListener("click", () => { checkInModal.classList.add("hidden"); });
+
+        // --- TASK FORM SUBMIT ---
+        document.getElementById("taskForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!userId) return;
+
+            const title = document.getElementById("taskTitleInput").value.trim();
+            const when = document.getElementById("taskWhenInput").value;
+            const priority = document.getElementById("taskPriorityInput").value;
+            const status = document.getElementById("taskStatusInput").value; // NEW STATUS
+            const attachmentLink = document.getElementById("taskAttachmentInput").value.trim();
+            
+            // Basic URL sanitation
+            const cleanLink = attachmentLink.startsWith('http') ? attachmentLink : (attachmentLink ? `https://${attachmentLink}` : null);
+
+            try {
+                await addDoc(getTaskCollectionRef(), {
+                    title,
+                    when,
+                    priority,
+                    status, // Save new status
+                    attachmentLink: cleanLink,
+                    createdAt: serverTimestamp()
+                });
+                
+                document.getElementById("taskTitleInput").value = "";
+                document.getElementById("taskAttachmentInput").value = "";
+                document.getElementById("taskWhenInput").value = "today";
+                document.getElementById("taskPriorityInput").value = "high";
+                document.getElementById("taskStatusInput").value = "pending";
+                taskModal.classList.add("hidden");
+                // The onSnapshot listener handles rendering and switching tabs
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        });
+
+        // --- CHECK-IN FORM SUBMIT ---
+        const checkInMessageEl = document.getElementById("checkInMessage");
+        document.getElementById("checkInForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!userId || checkIns.find(c => c.date === todayKey())) return;
+
+            const energy = Number(document.getElementById("checkInEnergy").value);
+            const focus = Number(document.getElementById("checkInFocus").value);
+            const note = document.getElementById("checkInNote").value.trim();
+            const saveBtn = document.getElementById("saveCheckInBtn");
+            
+            saveBtn.textContent = "Saving...";
+            saveBtn.disabled = true;
+
+            try {
+                await addDoc(getCheckinCollectionRef(), {
+                    energy,
+                    focus,
+                    note,
+                    createdAt: serverTimestamp(),
+                });
+                
+                checkInMessageEl.textContent = "Daily check-in saved successfully!";
+                checkInMessageEl.classList.remove("hidden");
+                setTimeout(() => checkInModal.classList.add("hidden"), 1500);
+            } catch (e) {
+                console.error("Error saving check-in: ", e);
+                checkInMessageEl.textContent = "Error saving check-in. Try again.";
+                checkInMessageEl.classList.remove("hidden");
+                saveBtn.disabled = false;
+            } finally {
+                saveBtn.textContent = "Save Check-in";
+            }
+        });
+
+        // --- CHECK-IN RANGE SYNC ---
+        const energyRange = document.getElementById("checkInEnergy");
+        const focusRange = document.getElementById("checkInFocus");
+        const energyLabel = document.getElementById("checkInEnergyValue");
+        const focusLabel = document.getElementById("checkInFocusValue");
+
+        function syncRanges() {
+            energyLabel.textContent = energyRange.value;
+            focusLabel.textContent = focusRange.value;
+        }
+        energyRange.addEventListener("input", syncRanges);
+        focusRange.addEventListener("input", syncRanges);
+        
+        function updateLastCheckIn() {
+            const label = document.getElementById("lastCheckInText");
+            const today = todayKey();
+            const last = checkIns.find(c => c.date === today) || checkIns[0];
+
+            if (!last) {
+                label.textContent = "No log data available.";
+                document.getElementById("saveCheckInBtn").disabled = false;
+            } else if (last.date === today) {
+                label.textContent = `Today • Energy ${last.energy}/10 • Focus ${last.focus}/10`;
+                document.getElementById("saveCheckInBtn").disabled = true;
+                checkInMessageEl.textContent = "You've already checked in for today.";
+                checkInMessageEl.classList.remove("hidden");
+            } else {
+                label.textContent = `Last on ${last.date} • Energy ${last.energy}/10 • Focus ${last.focus}/10`;
+                document.getElementById("saveCheckInBtn").disabled = false;
+                checkInMessageEl.classList.add("hidden");
+            }
+        }
+
+        // --- AI SUGGESTION & COACHING CORE LOGIC ---
+
+        // Daily AI Suggested Task (Idle avoidance)
+        document.getElementById("suggestFocusBtn").addEventListener("click", async () => {
+            if (isAiProcessing || !userId) return;
+            isAiProcessing = true;
+            const btn = document.getElementById("suggestFocusBtn");
+            const btnText = document.getElementById("suggestFocusText");
+            const originalText = btnText.textContent;
+            btnText.textContent = "Analyzing data...";
+            btn.disabled = true;
+
+            try {
+                const response = await getAiResponse("Suggest my best next focus task.", 'SUGGEST_TASK');
+                const parts = response.text.trim().split('\n');
+                const suggestedTitle = parts[0].trim().replace(/^['"]|['"]$/g, ''); // Clean quotes
+                const priorityMatch = parts[1] ? parts[1].match(/(high|medium|low)/i) : ['medium'];
+                const suggestedPriority = priorityMatch ? priorityMatch[0].toLowerCase() : 'medium';
+                
+                document.getElementById("todayFocusText").textContent = `FOCUS: ${suggestedTitle}`;
+                document.getElementById("dailyFocusStatus").textContent = `${suggestedPriority.toUpperCase()} Priority`;
+                
+                // Pre-fill task modal for user to quickly accept/add
+                document.getElementById("taskTitleInput").value = suggestedTitle;
+                document.getElementById("taskPriorityInput").value = suggestedPriority;
+                document.getElementById("taskWhenInput").value = "today";
+                
+            } catch (error) {
+                console.error("AI Focus Suggestion Error:", error);
+                document.getElementById("todayFocusText").textContent = "Error fetching AI Focus. See console.";
+            } finally {
+                btnText.textContent = originalText;
+                btn.disabled = false;
+                isAiProcessing = false;
+            }
+        });
+        
+        // Idle time suggestions (local function wrapper for AI)
+        document.getElementById("refreshSuggestionsBtn").addEventListener("click", generateSuggestions);
+        async function generateSuggestions() {
+            if (isAiProcessing || !userId) {
+                document.getElementById("suggestionsList").innerHTML = `<li class="text-gray-500">Processing... or Not logged in.</li>`;
+                return;
+            }
+            
+            const listEl = document.getElementById("suggestionsList");
+            listEl.innerHTML = `<li class="text-gray-500">Generating proactive ideas...</li>`;
+
+            try {
+                isAiProcessing = true;
+                const response = await getAiResponse("Suggest 3 strategic, non-urgent tasks for idle time. Format as a bulleted list.", 'SUGGEST_TASK');
+                const suggestions = response.text.trim().split('\n').filter(line => line.trim().startsWith('*') || line.trim().startsWith('-'));
+
+                listEl.innerHTML = "";
+                if (suggestions.length === 0) {
+                    listEl.innerHTML = `<li class="text-gray-500">AI couldn't generate specific idle tasks. Maybe try the Coaching screen.</li>`;
+                } else {
+                    suggestions.forEach(s => {
+                        const li = document.createElement("li");
+                        li.textContent = s.replace(/^[\*\-]\s*/, '• ').trim();
+                        listEl.appendChild(li);
+                    });
+                }
+            } catch (error) {
+                console.error("AI Idle Suggestion Error:", error);
+                listEl.innerHTML = `<li class="text-red-600">Error fetching idle suggestions.</li>`;
+            } finally {
+                isAiProcessing = false;
+            }
+        }
+        
+        // Main AI Coaching
+        document.getElementById("generateCoachingBtn").addEventListener("click", async () => {
+            if (isAiProcessing || !userId) return;
+            isAiProcessing = true;
+            const btn = document.getElementById("generateCoachingBtn");
+            const btnTextEl = document.getElementById("generateCoachingText");
+            const input = document.getElementById("coachingInput").value.trim();
+            const output = document.getElementById("coachingOutput");
+            const sourcesContainer = document.getElementById("aiSources");
+
+            if (!input) {
+                output.textContent = "Please enter a question or problem before generating a coaching session.";
+                isAiProcessing = false;
+                return;
+            }
+
+            const originalText = btnTextEl.textContent;
+            btnTextEl.textContent = "Analyzing & Drafting Session...";
+            btn.disabled = true;
+            output.textContent = "..."
+
+            try {
+                const response = await getAiResponse(input, 'COACHING');
+                
+                // Render coaching text
+                const formattedText = response.text
+                    .replace(/### (.*?)\n/g, '<h4>$1</h4>') // Custom header formatting
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                    .replace(/\n\n/g, '<br/><br/>'); // Preserve paragraphs
+
+                output.innerHTML = formattedText;
+                
+                // Render sources
+                sourcesContainer.innerHTML = '<p class="font-medium text-gray-800 mb-1">Sources Referenced</p>';
+                if (response.sources && response.sources.length > 0) {
+                    sourcesContainer.classList.remove("hidden");
+                    const ul = document.createElement('ul');
+                    ul.className = "list-disc list-inside space-y-1 text-gray-700";
+                    response.sources.forEach(s => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<a href="${s.uri}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${s.title || s.uri}</a>`;
+                        ul.appendChild(li);
+                    });
+                    sourcesContainer.appendChild(ul);
+                } else {
+                    sourcesContainer.classList.add("hidden");
+                }
+
+
+            } catch (error) {
+                console.error("AI Coaching Error:", error);
+                output.textContent = "Error during AI coaching session. See console for details.";
+                sourcesContainer.classList.add("hidden");
+            } finally {
+                btnTextEl.textContent = originalText;
+                btn.disabled = false;
+                isAiProcessing = false;
+            }
+        });
+
+        // --- STATS & ANALYTICS ---
+        function refreshStatsAndAnalytics() {
+            const tasksToday = tasks.filter(t => t.when === "today");
+            const completedTodayCount = tasksToday.filter(t => t.status === "done").length;
+            
+            document.getElementById("statTasksDone").textContent = completedTodayCount.toString();
+
+            const lastCheckin = checkIns.find(c => c.date === todayKey());
+            const focusScore = lastCheckin ? lastCheckin.focus : null;
+            document.getElementById("statFocusScore").textContent = focusScore ?? "–";
+
+            // Deep work: approx -> high-priority completed tasks * 25min
+            const deepMinutes = tasksToday.filter(t => t.priority === "high" && t.status === "done").length * 25;
+            document.getElementById("statDeepMinutes").textContent = deepMinutes.toString();
+            
+            updateTodayHeader(completedTodayCount);
+            analyzeBottlenecks();
+        }
+
+        function updateTodayHeader(done) {
+            const dateLabel = document.getElementById("todayDateLabel");
+            const subtitle = document.getElementById("topSubtitle");
+            const d = new Date();
+            const options = { weekday: "short", month: "short", day: "numeric" };
+            dateLabel.textContent = d.toLocaleDateString(undefined, options);
+
+            if (userId) {
+                if (done === 0) {
+                    subtitle.textContent = "Run your day. Be intentional.";
+                } else if (done < 3) {
+                    subtitle.textContent = `Nice, ${done} task${done>1?"s":""} done today.`;
+                } else {
+                    subtitle.textContent = `Solid execution: ${done} tasks finished.`;
+                }
+            }
+        }
+
+        function analyzeBottlenecks() {
+            const hint = document.getElementById("bottleneckHint");
+            const agedTasks = tasks.filter(t => {
+                const createdAtTime = t.createdAt?.toDate()?.getTime() || 0;
+                const ageDays = Math.floor((Date.now() - createdAtTime) / (1000 * 60 * 60 * 24));
+                return t.status !== "done" && ageDays > 14;
+            });
+            const blockedCount = tasks.filter(t => t.status === 'blocked').length;
+
+            if (agedTasks.length === 0 && blockedCount === 0) {
+                hint.innerHTML = 'AI analysis: <span class="text-primary font-bold">No significant operational bottlenecks detected</span>. Keep pushing.';
+                hint.classList.remove('bg-red-100', 'border-red-300', 'text-red-700');
+                hint.classList.add('bg-white', 'border-gray-200', 'text-gray-600');
+            } else {
+                 hint.innerHTML = `AI analysis: <span class="text-red-600 font-bold">${blockedCount} blocked & ${agedTasks.length} aged tasks</span>. This indicates a flow bottleneck. Use the AI Coach for solutions.`;
+                 hint.classList.add('bg-red-100', 'border-red-300', 'text-red-700');
+                 hint.classList.remove('bg-white', 'border-gray-200', 'text-gray-600');
+            }
+        }
+
+        // --- TAB SWITCHING (FIXED) ---
+        const screens = {
+            today: document.getElementById("screen-today"),
+            tasks: document.getElementById("screen-tasks"),
+            coaching: document.getElementById("screen-coaching")
+        };
+
+        function switchTab(target) {
+            Object.entries(screens).forEach(([k, el]) => {
+                el.classList.toggle("hidden", k !== target);
+            });
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                const isSelected = btn.dataset.target === target;
+                btn.classList.toggle("text-primary", isSelected);
+                btn.classList.toggle("hover:text-gray-900", !isSelected);
+                btn.classList.toggle("text-gray-900", isSelected);
+                btn.classList.toggle("text-gray-500", !isSelected);
+            });
+        }
+        
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                switchTab(btn.dataset.target);
+            });
+        });
+
+
+        // --- INIT ---
+        function init() {
+            // Initial UI update before data streams in
+            updateTodayHeader(0);
+            updateLastCheckIn();
+            syncRanges();
+            switchTab('today'); // Ensure the 'Today' tab is active on load
+            document.getElementById("suggestFocusBtn").disabled = false; 
+            document.getElementById("generateCoachingBtn").disabled = false;
+        }
+
+        // Ensure init runs only after the script loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    </script>
+</body>
+</html>
+
